@@ -1,6 +1,3 @@
 aiogram>=3.0.0
 groq
-pymongo
-dnspython
-
-
+psycopg2-binary
