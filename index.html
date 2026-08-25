@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Zukko English Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-purple: #a855f7;
+            --accent-red: #ef4444;
+            --accent-gold: #f59e0b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 80px; }
+
+        /* Header UI */
+        header { background: var(--card-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 42px; height: 42px; background: var(--accent-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000; font-size: 18px; }
+        .badge { background: #334155; padding: 2px 8px; border-radius: 10px; font-size: 11px; color: var(--accent-gold); display: inline-block; margin-top: 2px; }
+
+        /* Tabs Layout */
+        .tab-content { display: none; padding: 15px; }
+        .tab-content.active { display: block; }
+
+        /* Cards & Buttons */
+        .card { background: var(--card-bg); border-radius: 16px; padding: 18px; margin-bottom: 15px; border: 1px solid #334155; position: relative; }
+        .card h3 { color: var(--accent-blue); margin-bottom: 6px; }
+        .card p { font-size: 13px; color: var(--text-sub); margin-bottom: 12px; }
+        
+        /* Premium Floating Bar for Every Tab */
+        .tab-premium-banner { background: linear-gradient(135deg, #7c3aed, #d97706); border-radius: 14px; padding: 12px; margin-top: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .tab-premium-banner span { font-size: 13px; font-weight: bold; color: #fff; }
+        .tab-premium-banner button { background: #fff; color: #000; border: none; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 12px; cursor: pointer; }
+
+        .btn-action { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; text-align: center; font-size: 14px; color: #000; }
+        .input-field { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #fff; margin: 8px 0; }
+
+        /* Leaderboard UI */
+        .leader-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #334155; }
+        .leader-rank { font-weight: bold; width: 30px; color: var(--accent-gold); }
+
+        /* Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: var(--card-bg); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #334155; z-index: 500; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-sub); font-size: 10px; border: none; background: none; cursor: pointer; }
+        .nav-item.active { color: var(--accent-blue); }
+        .nav-item span { font-size: 20px; margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+
+    <!-- Header (Profil & Ballar) -->
+    <header>
+        <div class="user-info">
+            <div class="avatar" id="headerAvatar">S</div>
+            <div>
+                <h4 id="headerName">Shohruzbek</h4>
+                <span class="badge" id="userRank">🌱 Beginner</span>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div style="color: var(--accent-gold); font-weight: bold; font-size: 16px;" id="userXP">0 XP</div>
+            <small style="color: var(--text-sub);">🔥 <span id="streakDays">1</span> Kunlik Streak</small>
+        </div>
+    </header>
+
+    <!-- TAB 1: Bosh Sahifa (Home) -->
+    <div class="tab-content active" id="tab-home">
+        <div class="tab-premium-banner">
+            <span>⚡ 2X XP Tezlatkichni yoqing!</span>
+            <button onclick="openPremiumPay()">Olish 🚀</button>
+        </div>
+
+        <div class="card">
+            <h3>🎓 AI Ustoz bilan Muloqot</h3>
+            <p>Bugungi audio dars va topshiriqlarni bajaring hamda ballaringizni oshiring.</p>
+            <button class="btn-action" style="background: var(--accent-blue);">Darsni Boshlash</button>
+        </div>
+
+        <div class="card">
+            <h3>🎙️ AI Pronunciation Trainer (Talaffuz)</h3>
+            <p>Mikrofonga "Challenge" so'zini ayting va talaffuzingizni tekshiring!</p>
+            <button class="btn-action" style="background: var(--accent-purple); color: #fff;" onclick="testSpeech()">🗣️ Mikrofonga aytish</button>
+            <small id="speech-result" style="display:block; margin-top:8px; color: var(--accent-green); font-weight: bold;"></small>
+        </div>
+    </div>
+
+    <!-- TAB 2: O'yinlar Zonasi (Games) -->
+    <div class="tab-content" id="tab-games">
+        <div class="tab-premium-banner">
+            <span>⭐ Premium: O'yinlarda 2 Baravar Ko'p XP!</span>
+            <button onclick="openPremiumPay()">Aktivlashtirish</button>
+        </div>
+
+        <div class="card">
+            <h3>🪢 Arqon Tortish (2-vs-2 / AI)</h3>
+            <p>Savollarga tez va to'g'ri javob berib, arqonni o'z tomoningizga torting!</p>
+            <button class="btn-action" style="background: var(--accent-green);" onclick="addXP(1500)">O'ynash (+1,500 XP)</button>
+        </div>
+
+        <div class="card">
+            <h3>🏎️ Poyga O'yini (Car Race)</h3>
+            <p>Qizil vs Ko'k mashina! Har bir to'g'ri so'z mashinangizni marraga suradi.</p>
+            <button class="btn-action" style="background: var(--accent-blue);" onclick="addXP(2000)">Poygani Boshlash (+2,000 XP)</button>
+        </div>
+
+        <div class="card">
+            <h3>🎧 Audio Quiz (30 Raundlik Listening)</h3>
+            <p>Talaffuzni eshiting va 4 ta variantdan to'g'ri javobni tanlang.</p>
+            <button class="btn-action" style="background: var(--accent-purple); color: #fff;" onclick="addXP(3000)">Quizni Boshlash (+3,000 XP)</button>
+        </div>
+    </div>
+
+    <!-- TAB 3: Lug'at (Vocab & Cards) -->
+    <div class="tab-content" id="tab-vocab">
+        <div class="tab-premium-banner">
+            <span>⚡ Premium: Cheksiz Flashcard lug'atlar!</span>
+            <button onclick="openPremiumPay()">VIP O'tish</button>
+        </div>
+
+        <div class="card">
+            <h3>🎴 Tinder-Flashcards</h3>
+            <p>So'zni bilasangiz o'ngga, bilmasangiz chapga suring.</p>
+            <div style="background: #0f172a; padding: 25px; text-align: center; border-radius: 12px; margin-bottom: 10px;">
+                <h2 style="color: var(--accent-blue);">Achieve</h2>
+                <small style="color: var(--text-sub);">[erishmoq]</small>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-action" style="background: var(--accent-red); color: #fff;" onclick="alert('Qaytarishga qo\'shildi')">❌ Bilmayman</button>
+                <button class="btn-action" style="background: var(--accent-green);" onclick="addXP(500)">✅ Bilaman (+500 XP)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: Liderlar Jadvali & Ota-ona (Leaderboard & Parent) -->
+    <div class="tab-content" id="tab-parent">
+        <div class="tab-premium-banner">
+            <span>⭐ Premium: Ota-onaga batafsil xatolar tahlili</span>
+            <button onclick="openPremiumPay()">Ulash</button>
+        </div>
+
+        <div class="card">
+            <h3>🏆 Top-Foydalanuvchilar Liderlar Jadvali</h3>
+            <p>Eng yuqori XP ball to'plagan o'quvchilar ro'yxati:</p>
+            
+            <div class="leader-item">
+                <span class="leader-rank">🥇 1</span>
+                <span>Jasur_Cyber</span>
+                <span style="color: var(--accent-gold); font-weight: bold;">1.2M XP</span>
+            </div>
+            <div class="leader-item">
+                <span class="leader-rank">🥈 2</span>
+                <span id="myLeaderName">Shohruzbek (Siz)</span>
+                <span style="color: var(--accent-gold); font-weight: bold;" id="myLeaderXP">0 XP</span>
+            </div>
+            <div class="leader-item">
+                <span class="leader-rank">🥉 3</span>
+                <span>Malika_EN</span>
+                <span style="color: var(--accent-gold); font-weight: bold;">850K XP</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>👨‍👩‍👧 Ota-ona Nazorati</h3>
+            <input type="number" id="parentInput" class="input-field" placeholder="Ota-ona Telegram ID'si">
+            <button class="btn-action" style="background: var(--accent-blue);" onclick="alert('Ota-ona ID yuborildi!')">Ulash</button>
+        </div>
+    </div>
+
+    <!-- TAB 5: Sozlamalar & VIP (Settings & Admin) -->
+    <div class="tab-content" id="tab-settings">
+        <div class="tab-premium-banner">
+            <span>⭐ Premium VIP (2X XP & Boost)</span>
+            <button onclick="openPremiumPay()">Sotib Olish</button>
+        </div>
+
+        <div class="card">
+            <h3>⚙️ Profil Sozlamalari</h3>
+            <p>Ma'lumotlarni o'zgartirish va admin bilan bog'lanish.</p>
+            <a href="https://t.me/shoxruz_cy" target="_blank" class="btn-action" style="background: #22c55e; color: #fff; text-decoration: none; display: block; margin-top: 10px;">💬 Admin bilan aloqa (@shoxruz_cy)</a>
+        </div>
+    </div>
+
+    <!-- Navigation Bar (5 ta tugma) -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('home', this)"><span>🏠</span>Asosiy</button>
+        <button class="nav-item" onclick="switchTab('games', this)"><span>🎮</span>O'yinlar</button>
+        <button class="nav-item" onclick="switchTab('vocab', this)"><span>📚</span>Lug'at</button>
+        <button class="nav-item" onclick="switchTab('parent', this)"><span>🏆</span>Reyting</button>
+        <button class="nav-item" onclick="switchTab('settings', this)"><span>⚙️</span>Sozlama</button>
+    </nav>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let totalXP = 0;
+
+        function formatXP(num) {
+            if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num;
+        }
+
+        function getRankTitle(xp) {
+            if (xp >= 1000000000) return "🚀 Cyber Guru";
+            if (xp >= 1000000) return "👑 English Legend";
+            if (xp >= 50000) return "⚡ Master English";
+            return "🌱 Beginner";
+        }
+
+        function updateUI() {
+            let formatted = formatXP(totalXP) + ' XP';
+            document.getElementById('userXP').innerText = formatted;
+            document.getElementById('myLeaderXP').innerText = formatted;
+            document.getElementById('userRank').innerText = getRankTitle(totalXP);
+        }
+
+        function addXP(amount) {
+            totalXP += amount;
+            updateUI();
+            alert("Tabriklaymiz! +" + amount + " XP to'pladingiz!");
+        }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function openPremiumPay() {
+            alert("Telegram Bot ichiga o'ting va '⚡ Premium 2X XP' tugmasini bosib to'lov chekini yuboring!");
+        }
+
+        function testSpeech() {
+            const resultEl = document.getElementById('speech-result');
+            resultEl.innerText = "🎙️ Eshityapman, so'zlang...";
+            
+            setTimeout(() => {
+                resultEl.innerText = "🎯 Talaffuz aniqligi: 94% Perfect! (+1,000 XP)";
+                addXP(1000);
+            }, 2500);
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>
+
