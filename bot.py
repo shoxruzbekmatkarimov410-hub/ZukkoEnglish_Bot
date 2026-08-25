@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import psycopg2
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import (
@@ -8,12 +9,12 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 )
 from groq import Groq
-from pymongo import MongoClient
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
-MONGO_URL = os.getenv("MONGO_URL", "mongodb+srv://USER:PASS@cluster.mongodb.net/zukko_db")
+# Render'dan olingan Internal Database URL shu yerga tushadi
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 MINI_APP_URL = "https://shoxruz.github.io/"
 ADMIN_USERNAME = "shoxruz_cy"
@@ -23,13 +24,28 @@ CARD_OWNER = "Matkarimov Shoxruzbek"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
-
 groq_client = Groq(api_key=GROQ_API_KEY)
-mongo_client = MongoClient(MONGO_URL)
-db = mongo_client["zukko_english"]
-users_col = db["users"]
 
-# Tugmalar ro'yxati (Admin bilan aloqa tugmasi qo'shildi)
+# PostgreSQL bazasiga ulanish va jadvalni yaratish
+def init_db():
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id BIGINT PRIMARY KEY,
+            name TEXT,
+            xp INT DEFAULT 0,
+            parent_id BIGINT,
+            is_premium BOOLEAN DEFAULT FALSE
+        )
+    ''')
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+init_db()
+
+# Tugmalar ro'yxati
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🚀 Mini App'ni Ochish", web_app=WebAppInfo(url=MINI_APP_URL))],
@@ -43,25 +59,31 @@ main_keyboard = ReplyKeyboardMarkup(
 @dp.message(CommandStart())
 async def start_handler(message: types.Message):
     user_id = message.from_user.id
-    user_data = users_col.find_one({"user_id": user_id})
+    name = message.from_user.first_name
+
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    cursor = conn.cursor()
     
-    if not user_data:
-        users_col.insert_one({
-            "user_id": user_id,
-            "name": message.from_user.first_name,
-            "xp": 0,
-            "parent_id": None,
-            "is_premium": False
-        })
+    cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+    user = cursor.fetchone()
+    
+    if not user:
+        cursor.execute(
+            "INSERT INTO users (user_id, name, xp, parent_id, is_premium) VALUES (%s, %s, 0, NULL, FALSE)",
+            (user_id, name)
+        )
+        conn.commit()
+
+    cursor.close()
+    conn.close()
 
     welcome_text = (
-        f"Salom <b>{message.from_user.first_name}</b>! 👋\n\n"
+        f"Salom <b>{name}</b>! 👋\n\n"
         f"Men <b>Zukko English AI</b> ustozingizman.\n"
         f"Mini App orqali darslar va o'yinlarni topshirishingiz mumkin."
     )
     await message.answer(welcome_text, parse_mode="HTML", reply_markup=main_keyboard)
 
-# Admin bilan aloqa tugmasi
 @dp.message(F.text == "👨‍💻 Admin bilan aloqa")
 async def contact_admin(message: types.Message):
     inline_admin = InlineKeyboardMarkup(inline_keyboard=[
@@ -86,9 +108,15 @@ async def process_parent_id(message: types.Message):
     parent_id = int(message.text)
     user_id = message.from_user.id
 
-    parent_data = users_col.find_one({"user_id": parent_id})
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (parent_id,))
+    parent_data = cursor.fetchone()
 
     if not parent_data:
+        cursor.close()
+        conn.close()
         await message.answer(
             "❌ <b>Xatolik!</b> Ushbu ID ega bo'lgan foydalanuvchi botga /start bosmagan.\n"
             "Avval ota-onangiz botga kirib /start tugmasini bosishlari kerak.",
@@ -96,7 +124,11 @@ async def process_parent_id(message: types.Message):
         )
         return
 
-    users_col.update_one({"user_id": user_id}, {"$set": {"parent_id": parent_id}})
+    cursor.execute("UPDATE users SET parent_id = %s WHERE user_id = %s", (parent_id, user_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
     await message.answer("✅ Ota-ona hisobi muvaffaqiyatli ulandi!")
     
     try:
@@ -148,4 +180,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
