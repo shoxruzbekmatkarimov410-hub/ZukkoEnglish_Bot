@@ -13,7 +13,6 @@ from groq import Groq
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
-# Render'dan olingan Internal Database URL shu yerga tushadi
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 MINI_APP_URL = "https://shoxruz.github.io/"
@@ -26,12 +25,12 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-# PostgreSQL bazasiga ulanish va jadvalni yaratish
+# PostgreSQL bazasiga ulanish va Zukko uchun alohida jadval yaratish
 def init_db():
     conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     cursor = conn.cursor()
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS zukko_users (
             user_id BIGINT PRIMARY KEY,
             name TEXT,
             xp INT DEFAULT 0,
@@ -64,12 +63,12 @@ async def start_handler(message: types.Message):
     conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     cursor = conn.cursor()
     
-    cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT user_id FROM zukko_users WHERE user_id = %s", (user_id,))
     user = cursor.fetchone()
     
     if not user:
         cursor.execute(
-            "INSERT INTO users (user_id, name, xp, parent_id, is_premium) VALUES (%s, %s, 0, NULL, FALSE)",
+            "INSERT INTO zukko_users (user_id, name, xp, parent_id, is_premium) VALUES (%s, %s, 0, NULL, FALSE)",
             (user_id, name)
         )
         conn.commit()
@@ -111,7 +110,7 @@ async def process_parent_id(message: types.Message):
     conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     cursor = conn.cursor()
 
-    cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (parent_id,))
+    cursor.execute("SELECT user_id FROM zukko_users WHERE user_id = %s", (parent_id,))
     parent_data = cursor.fetchone()
 
     if not parent_data:
@@ -124,7 +123,7 @@ async def process_parent_id(message: types.Message):
         )
         return
 
-    cursor.execute("UPDATE users SET parent_id = %s WHERE user_id = %s", (parent_id, user_id))
+    cursor.execute("UPDATE zukko_users SET parent_id = %s WHERE user_id = %s", (parent_id, user_id))
     conn.commit()
     cursor.close()
     conn.close()
@@ -180,5 +179,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
+    
